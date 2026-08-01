@@ -1,71 +1,48 @@
-const std = @import("std");
-const Io = std.Io;
+const rl = @import("raylib");
 
-const lab1polygons = @import("lab1polygons");
+const Poly = struct { verts: []const rl.Vector2, fc: rl.Color, lc: rl.Color };
 
-pub fn main(init: std.process.Init) !void {
-    // Prints to stderr, unbuffered, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // This is appropriate for anything that lives as long as the process.
-    const arena: std.mem.Allocator = init.arena.allocator();
-
-    // Accessing command line arguments:
-    const args = try init.minimal.args.toSlice(arena);
-    for (args) |arg| {
-        std.log.info("arg: {s}", .{arg});
+inline fn drawTriangleFan(puntos: []const rl.Vector2, fillColor: rl.Color) void {
+    var i: usize = 1;
+    while (i < puntos.len - 1) : (i += 1) {
+        rl.drawTriangle(puntos[0], puntos[i], puntos[i + 1], fillColor);
     }
-
-    // In order to do I/O operations need an `Io` instance.
-    const io = init.io;
-
-    // Stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
-    const stdout_writer = &stdout_file_writer.interface;
-
-    try lab1polygons.printAnotherMessage(stdout_writer);
-
-    try stdout_writer.flush(); // Don't forget to flush!
 }
 
-test "simple test" {
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+inline fn drawPolygonOutline(puntos: []const rl.Vector2, lineColor: rl.Color, thickness: f32) void {
+    const n = puntos.len;
+    var i: usize = 0;
+    while (i < n) : (i += 1) {
+        rl.drawLineEx(puntos[i], puntos[(i + 1) % n], thickness, lineColor);
+    }
 }
 
-test "fuzz example" {
-    try std.testing.fuzz({}, testOne, .{});
-}
+const p1 = [_]rl.Vector2{ rl.Vector2.init(165, 380), rl.Vector2.init(185, 360), rl.Vector2.init(180, 330), rl.Vector2.init(207, 345), rl.Vector2.init(233, 330), rl.Vector2.init(230, 360), rl.Vector2.init(250, 380), rl.Vector2.init(220, 385), rl.Vector2.init(205, 410), rl.Vector2.init(193, 383) };
+const p2 = [_]rl.Vector2{ rl.Vector2.init(321, 335), rl.Vector2.init(288, 286), rl.Vector2.init(339, 251), rl.Vector2.init(374, 302) };
+const p3 = [_]rl.Vector2{ rl.Vector2.init(377, 249), rl.Vector2.init(411, 197), rl.Vector2.init(436, 249) };
+const p4 = [_]rl.Vector2{ rl.Vector2.init(413, 177), rl.Vector2.init(448, 159), rl.Vector2.init(502, 88), rl.Vector2.init(553, 53), rl.Vector2.init(535, 36), rl.Vector2.init(676, 37), rl.Vector2.init(660, 52), rl.Vector2.init(750, 145), rl.Vector2.init(761, 179), rl.Vector2.init(672, 192), rl.Vector2.init(659, 214), rl.Vector2.init(615, 214), rl.Vector2.init(632, 230), rl.Vector2.init(580, 230), rl.Vector2.init(597, 215), rl.Vector2.init(552, 214), rl.Vector2.init(517, 144), rl.Vector2.init(466, 180) };
+const p5 = [_]rl.Vector2{ rl.Vector2.init(682, 175), rl.Vector2.init(708, 120), rl.Vector2.init(735, 148), rl.Vector2.init(739, 170) };
 
-fn testOne(context: void, smith: *std.testing.Smith) !void {
-    _ = context;
-    // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
+const white = rl.Color.init(255, 255, 255, 255);
+const polygons = [_]Poly{
+    .{ .verts = p1[0..], .fc = rl.Color.init(144, 238, 144, 255), .lc = rl.Color.init(0, 100, 0, 255) },
+    .{ .verts = p2[0..], .fc = rl.Color.init(173, 216, 230, 255), .lc = rl.Color.init(0, 0, 139, 255) },
+    .{ .verts = p3[0..], .fc = rl.Color.init(255, 255, 0, 255), .lc = rl.Color.init(255, 165, 0, 255) },
+    .{ .verts = p4[0..], .fc = rl.Color.init(255, 182, 193, 255), .lc = rl.Color.init(139, 0, 0, 255) },
+    .{ .verts = p5[0..], .fc = white, .lc = white },
+};
 
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(u8) = .empty;
-    defer list.deinit(gpa);
-    while (!smith.eos()) switch (smith.value(enum { add_data, dup_data })) {
-        .add_data => {
-            const slice = try list.addManyAsSlice(gpa, smith.value(u4));
-            smith.bytes(slice);
-        },
-        .dup_data => {
-            if (list.items.len == 0) continue;
-            if (list.items.len > std.math.maxInt(u32)) return error.SkipZigTest;
-            const len = smith.valueRangeAtMost(u32, 1, @min(32, list.items.len));
-            const off = smith.valueRangeAtMost(u32, 0, @intCast(list.items.len - len));
-            try list.appendSlice(gpa, list.items[off..][0..len]);
-            try std.testing.expectEqualSlices(
-                u8,
-                list.items[off..][0..len],
-                list.items[list.items.len - len ..],
-            );
-        },
-    };
+pub fn main() void {
+    rl.initWindow(800, 500, "Relleno de Polígonos");
+    defer rl.closeWindow();
+
+    while (!rl.windowShouldClose()) {
+        rl.beginDrawing();
+        rl.clearBackground(white);
+        for (polygons) |p| {
+            drawTriangleFan(p.verts, p.fc);
+            drawPolygonOutline(p.verts, p.lc, 2);
+        }
+        rl.endDrawing();
+    }
 }
