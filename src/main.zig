@@ -1,3 +1,4 @@
+const std = @import("std");
 const rl = @import("raylib");
 const tr = @import("triangulate.zig");
 
@@ -35,7 +36,7 @@ pub fn main() void {
         rl.beginDrawing();
         rl.clearBackground(white);
         for (polygons) |p| {
-            const triangles = tr.triangulate(p.verts);
+            const triangles = tr.triangulate(std.mem.Allocator{}, p.verts);
             for (triangles) |t| {
                 rl.drawTriangle(t[0], t[1], t[2], p.fc);
             }
