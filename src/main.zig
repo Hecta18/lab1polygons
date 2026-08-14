@@ -92,7 +92,16 @@ fn triangulate(allocator: std.mem.Allocator, verts: []const rl.Vector2) ![]usize
 inline fn drawTriangulated(verts: []const rl.Vector2, tris: []const usize, fillColor: rl.Color) void {
     var i: usize = 0;
     while (i < tris.len) : (i += 3) {
-        rl.drawTriangle(verts[tris[i]], verts[tris[i + 1]], verts[tris[i + 2]], fillColor);
+        const a = verts[tris[i]];
+        const b = verts[tris[i + 1]];
+        const c = verts[tris[i + 2]];
+        // DrawTriangle culls clockwise vertices (it requires screen-space CCW).
+        // These polygons are authored clockwise, so swap two vertices when needed.
+        if (cross(a, b, c) < 0) {
+            rl.drawTriangle(a, b, c, fillColor);
+        } else {
+            rl.drawTriangle(a, c, b, fillColor);
+        }
     }
 }
 
